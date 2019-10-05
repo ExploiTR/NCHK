@@ -9,3 +9,6 @@
 #### Extra Infos :
 • UI is desgined with IntelliJ Idea. (GUI Form - GridLayoutManager)  
 • `Not X-Platform!` - As the application relays on ICMP Ping, the ping command is different in different OS.
+
+#### Downloads :
+https://github.com/ExploiTR/NCHK/releases | Java 8 required to be run.
