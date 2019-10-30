@@ -1,20 +1,36 @@
+import dorkbox.systemTray.Menu;
+import dorkbox.systemTray.MenuItem;
+import dorkbox.systemTray.Separator;
+import dorkbox.util.CacheUtil;
+import dorkbox.util.Desktop;
+import dorkbox.util.OS;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.stage.Stage;
-import org.jetbrains.annotations.Contract;
 
-import javax.swing.*;
+import javax.swing.JButton;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JComboBox;
+import javax.swing.JTextArea;
+import javax.swing.JFrame;
+import javax.swing.UIManager;
+import javax.swing.WindowConstants;
+import javax.swing.JOptionPane;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+
+import dorkbox.*;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Locale;
-import java.util.Objects;
+import java.net.URL;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -41,12 +57,17 @@ public class PingScale extends Application {
     private static long totalPacks = 0L, failedPacks = 0L;
     private Stage stage;
 
+    private dorkbox.systemTray.SystemTray systemTray;
+    private ActionListener callbackGray;
+
+    public static final URL IMAGE = PingScale.class.getResource("tray.png");
+
     private void createUIComponents() {
         // TODO: place custom component creation code here
     }
 
     @Override
-    public void start(Stage primaryStage) {
+    public void start(Stage primaryStage) throws IOException {
         lCalendar = Calendar.getInstance();
         nCalendar = Calendar.getInstance();
 
@@ -72,6 +93,7 @@ public class PingScale extends Application {
         showUI();
 
         Platform.setImplicitExit(false);
+        setupTray();
     }
 
     private void showUI() {
@@ -199,8 +221,6 @@ public class PingScale extends Application {
         }).start();
     }
 
-    @org.jetbrains.annotations.NotNull
-    @Contract(pure = true)
     private String obtainMessage() {
         Calendar xCalender = Calendar.getInstance();
         StringBuilder builder = new StringBuilder();
@@ -364,46 +384,51 @@ public class PingScale extends Application {
             return "0" + val;
     }
 
-   /* private void setupTray() throws Exception {
-        if (!SystemTray.isSupported()) {
-            return;
+    private void setupTray() throws IOException {
+        CacheUtil.clear(); // for test apps, make sure the cache is always reset. You should never do this in production.
+
+        this.systemTray = dorkbox.systemTray.SystemTray.get();
+        if (systemTray == null) {
+            throw new RuntimeException("Unable to load SystemTray!");
         }
 
-        final PopupMenu popup = new PopupMenu();
-        ImageView x = new ImageView();
+        systemTray.setTooltip("Mail Checker");
+        systemTray.setImage(IMAGE);
+        systemTray.setStatus("No Mail");
 
-        final TrayIcon trayIcon = new TrayIcon(ImageIO.read(createImage()));
-        final SystemTray tray = SystemTray.getSystemTray();
+        callbackGray = e -> {
+            final MenuItem entry = (MenuItem) e.getSource();
+            systemTray.setStatus(null);
+            systemTray.setImage(IMAGE);
 
-        trayIcon.addActionListener(event -> Platform.runLater(this::showStage));
+            entry.setCallback(null);
+            systemTray.getMenu().remove(entry);
+            entry.remove();
+            System.err.println("POW");
+        };
 
-        MenuItem displayMenu = new MenuItem("Hide Window");
-        MenuItem aboutItem = new MenuItem("About");
-        MenuItem exitItem = new MenuItem("Exit");
 
-        displayMenu.addActionListener(event -> Platform.runLater(this::hideStage));
+        Menu mainMenu = systemTray.getMenu();
 
-        aboutItem.addActionListener((event) -> {
+        mainMenu.add(new Separator());
 
+
+        MenuItem disableMenu = new MenuItem("Disable menu", IMAGE, e -> {
+            MenuItem source = (MenuItem) e.getSource();
+            source.getParent().setEnabled(false);
         });
 
-        exitItem.addActionListener((event) -> {
+        mainMenu.add(disableMenu);
+
+        MenuItem entry = new MenuItem("Type: " + systemTray.toString());
+        entry.setEnabled(false);
+        systemTray.getMenu().add(entry);
+
+        systemTray.getMenu().add(new MenuItem("Quit", e -> {
+            systemTray.shutdown();
             System.exit(0);
-        });
-
-        popup.add(displayMenu);
-        popup.add(aboutItem);
-        popup.addSeparator();
-        popup.add(exitItem);
-
-        trayIcon.setPopupMenu(popup);
-
-        try {
-            tray.add(trayIcon);
-        } catch (AWTException e) {
-            System.out.println("TrayIcon could not be added.");
-        }
-    } */
+        })).setShortcut('q');
+    }
 
     private void showStage() {
         if (stage != null) {
